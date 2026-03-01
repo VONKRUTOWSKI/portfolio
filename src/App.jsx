@@ -817,7 +817,7 @@ export default function App() {
               gap: { md: 5 },
             }}
           >
-            {["Home", "About Me", "Portfolio", "Services", "Blog"].map(
+            {["Home", "About Me", "Portfolio", "Services", ].map(
               (item) => (
                 <Typography
                   key={item}
@@ -939,7 +939,7 @@ export default function App() {
                   gap: 0,
                 }}
               >
-                {["Home", "About Me", "Portfolio", "Services", "Blog"].map(
+                {["Home", "About Me", "Portfolio", "Services", ].map(
                   (item, index) => (
                     <motion.div
                       key={item}
@@ -1738,7 +1738,7 @@ export default function App() {
                 justifyContent: { xs: "center", md: "flex-start" },
               }}
             >
-              {["Home", "About", "Portfolio", "Services", "Blog"].map(
+              {["Home", "About", "Portfolio", "Services", ""].map(
                 (item) => (
                   <Typography
                     key={item}
