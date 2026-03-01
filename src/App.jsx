@@ -67,7 +67,6 @@ function CinematicModal({ open, onClose, project }) {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
-  // Spotlight: always call hooks at top level (no conditionals)
   const spotlightXVal = useTransform(mouseX, (v) => v - 300);
   const spotlightYVal = useTransform(mouseY, (v) => v - 300);
 
@@ -75,8 +74,33 @@ function CinematicModal({ open, onClose, project }) {
     if (open) {
       setActiveIndex(0);
       setIsZoomed(false);
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
+    } else {
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
     }
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+    };
   }, [open]);
+
+  // Close on ESC key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        if (isZoomed) setIsZoomed(false);
+        else onClose();
+      }
+    };
+    if (open) window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, isZoomed, onClose]);
 
   const handleMouseMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -94,577 +118,548 @@ function CinematicModal({ open, onClose, project }) {
     { label: "Status", value: "Live" },
   ];
 
+  // Don't render anything if not open
+  if (!open) return null;
+
   return (
-    <AnimatePresence>
-      {open && (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 99999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "Poppins, sans-serif",
+        touchAction: "none",
+      }}
+      onClick={onClose}
+    >
+      {/* Backdrop */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(6, 6, 8, 0.96)",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+        }}
+      />
+
+      {/* Animated ambient orbs */}
+      <motion.div
+        animate={{ x: [0, 60, 0], y: [0, -40, 0], scale: [1, 1.15, 1] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          position: "absolute",
+          top: "10%",
+          left: "15%",
+          width: 500,
+          height: 500,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }}
+      />
+      <motion.div
+        animate={{ x: [0, -50, 0], y: [0, 60, 0], scale: [1, 1.2, 1] }}
+        transition={{ duration: 15, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        style={{
+          position: "absolute",
+          bottom: "5%",
+          right: "10%",
+          width: 400,
+          height: 400,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(123,123,123,0.07) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* Main Modal Panel */}
+      <motion.div
+        initial={{ scale: 0.88, opacity: 0, y: 60 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 40 }}
+        transition={{ type: "spring", damping: 28, stiffness: 280, mass: 0.9 }}
+        onClick={(e) => e.stopPropagation()}
+        onMouseMove={handleMouseMove}
+        ref={containerRef}
+        style={{
+          position: "relative",
+          width: "94vw",
+          maxWidth: 1180,
+          maxHeight: "93vh",
+          overflowY: "auto",
+          overflowX: "hidden",
+          WebkitOverflowScrolling: "touch",
+          background: "linear-gradient(160deg, #0e0e10 0%, #141416 50%, #0a0a0b 100%)",
+          borderRadius: 28,
+          border: "1px solid rgba(255,255,255,0.07)",
+          boxShadow: "0 0 0 1px rgba(255,255,255,0.04), 0 60px 120px rgba(0,0,0,0.9), 0 0 80px rgba(255,255,255,0.02)",
+          zIndex: 1,
+          touchAction: "pan-y",
+        }}
+      >
+        {/* Cursor-tracked spotlight */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.35, ease: "easeOut" }}
           style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 9999,
+            position: "absolute",
+            width: 600,
+            height: 600,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(255,255,255,0.035) 0%, transparent 65%)",
+            pointerEvents: "none",
+            x: spotlightXVal,
+            y: spotlightYVal,
+            zIndex: 0,
+          }}
+        />
+
+        {/* Top chrome bar */}
+        <Box
+          sx={{
+            position: "relative",
+            zIndex: 2,
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            fontFamily: "Poppins, sans-serif",
+            justifyContent: "space-between",
+            px: { xs: 2.5, md: 5 },
+            pt: { xs: 3, md: 4 },
+            pb: 3,
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
           }}
-          onClick={onClose}
         >
-          {/* Backdrop with noise grain */}
-          <motion.div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: "rgba(6, 6, 8, 0.96)",
-              backdropFilter: "blur(24px)",
-            }}
-          />
+          {/* Left: title block */}
+          <Box sx={{ flex: 1, minWidth: 0, pr: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.2 }}>
+              <motion.div
+                animate={{ scale: [1, 1.4, 1], opacity: [1, 0.5, 1] }}
+                transition={{ duration: 1.8, repeat: Infinity }}
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "#4eff91",
+                  boxShadow: "0 0 8px #4eff91",
+                  flexShrink: 0,
+                }}
+              />
+              <Typography sx={{ color: "#4eff91", fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase" }}>
+                Live Project
+              </Typography>
+            </Box>
 
-          {/* Animated ambient orbs */}
-          <motion.div
-            animate={{ x: [0, 60, 0], y: [0, -40, 0], scale: [1, 1.15, 1] }}
-            transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-            style={{
-              position: "absolute",
-              top: "10%",
-              left: "15%",
-              width: 500,
-              height: 500,
-              borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%)",
-              pointerEvents: "none",
-            }}
-          />
-          <motion.div
-            animate={{ x: [0, -50, 0], y: [0, 60, 0], scale: [1, 1.2, 1] }}
-            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-            style={{
-              position: "absolute",
-              bottom: "5%",
-              right: "10%",
-              width: 400,
-              height: 400,
-              borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(123,123,123,0.07) 0%, transparent 70%)",
-              pointerEvents: "none",
-            }}
-          />
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 900,
+                letterSpacing: "-1px",
+                fontSize: { xs: "1.4rem", sm: "1.8rem", md: "2.6rem" },
+                lineHeight: 1,
+                background: "linear-gradient(135deg, #ffffff 0%, #888888 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {project?.title}
+            </Typography>
+          </Box>
 
-          {/* Main Modal Panel */}
-          <motion.div
-            initial={{ scale: 0.88, opacity: 0, y: 60 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 40 }}
-            transition={{ type: "spring", damping: 28, stiffness: 280, mass: 0.9 }}
-            onClick={(e) => e.stopPropagation()}
-            onMouseMove={handleMouseMove}
-            ref={containerRef}
-            style={{
-              position: "relative",
-              width: "94vw",
-              maxWidth: 1180,
-              maxHeight: "93vh",
-              overflowY: "auto",
-              background: "linear-gradient(160deg, #0e0e10 0%, #141416 50%, #0a0a0b 100%)",
-              borderRadius: 28,
-              border: "1px solid rgba(255,255,255,0.07)",
-              boxShadow: "0 0 0 1px rgba(255,255,255,0.04), 0 60px 120px rgba(0,0,0,0.9), 0 0 80px rgba(255,255,255,0.02)",
-              overflow: "hidden",
-            }}
-          >
-            {/* Cursor-tracked spotlight */}
-            <motion.div
+          {/* Right: stats pills + close */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, md: 3 }, flexShrink: 0 }}>
+            {/* Stat chips – desktop only */}
+            <Box sx={{ display: { xs: "none", md: "flex" }, gap: 1.5 }}>
+              {stats.map((s, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: -12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 + i * 0.08 }}
+                >
+                  <Box
+                    sx={{
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.09)",
+                      borderRadius: "50px",
+                      px: 2,
+                      py: 0.7,
+                      backdropFilter: "blur(8px)",
+                      textAlign: "center",
+                    }}
+                  >
+                    <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "0.85rem", lineHeight: 1.2 }}>
+                      {s.value}
+                    </Typography>
+                    <Typography sx={{ color: "#555", fontSize: "0.65rem", fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      {s.label}
+                    </Typography>
+                  </Box>
+                </motion.div>
+              ))}
+            </Box>
+
+            {/* Close button */}
+            <button
+              onClick={(e) => { e.stopPropagation(); onClose(); }}
               style={{
-                position: "absolute",
-                width: 600,
-                height: 600,
+                width: 48,
+                height: 48,
                 borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(255,255,255,0.035) 0%, transparent 65%)",
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#aaa",
+                flexShrink: 0,
+                // Generous touch target
+                minWidth: 48,
+                minHeight: 48,
+                padding: 0,
+              }}
+            >
+              <CloseIcon style={{ fontSize: 20, color: "#aaa" }} />
+            </button>
+          </Box>
+        </Box>
+
+        {/* HERO FEATURED IMAGE / VIDEO */}
+        <Box sx={{ position: "relative", zIndex: 1, px: { xs: 1.5, md: 5 }, pt: { xs: 2.5, md: 4 } }}>
+          <motion.div
+            key={activeIndex}
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+            style={{ position: "relative", borderRadius: 20, overflow: "hidden" }}
+          >
+            {project?.video ? (
+              <Box
+                component="video"
+                src={project.video}
+                autoPlay
+                muted
+                loop
+                playsInline
+                onClick={() => setIsZoomed(true)}
+                sx={{
+                  width: "100%",
+                  height: { xs: "200px", sm: "320px", md: "520px" },
+                  objectFit: "cover",
+                  display: "block",
+                  cursor: "zoom-in",
+                  borderRadius: "20px",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                }}
+              />
+            ) : (
+              <Box
+                component="img"
+                src={screenshots[activeIndex]}
+                alt={`${project?.title} screenshot ${activeIndex + 1}`}
+                onClick={() => setIsZoomed(true)}
+                sx={{
+                  width: "100%",
+                  height: { xs: "200px", sm: "320px", md: "520px" },
+                  objectFit: "cover",
+                  display: "block",
+                  cursor: "zoom-in",
+                  borderRadius: "20px",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                }}
+              />
+            )}
+
+            {/* Gradient overlay at bottom */}
+            <Box
+              sx={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: "40%",
+                background: "linear-gradient(to top, rgba(10,10,11,0.85) 0%, transparent 100%)",
+                borderRadius: "0 0 20px 20px",
                 pointerEvents: "none",
-                x: spotlightXVal,
-                y: spotlightYVal,
-                zIndex: 0,
               }}
             />
 
-            {/* Top chrome bar */}
-            <Box
-              sx={{
-                position: "relative",
-                zIndex: 2,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                px: { xs: 3, md: 5 },
-                pt: 4,
-                pb: 3,
-                borderBottom: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
-              {/* Left: title block */}
-              <Box>
-                {/* LIVE badge */}
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.2 }}>
-                  <motion.div
-                    animate={{ scale: [1, 1.4, 1], opacity: [1, 0.5, 1] }}
-                    transition={{ duration: 1.8, repeat: Infinity }}
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background: "#4eff91",
-                      boxShadow: "0 0 8px #4eff91",
-                    }}
-                  />
-                  <Typography sx={{ color: "#4eff91", fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase" }}>
-                    Live Project
-                  </Typography>
-                </Box>
-
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.15, duration: 0.6 }}
-                >
-                  <Typography
-                    variant="h3"
-                    sx={{
-                      fontWeight: 900,
-                      letterSpacing: "-1px",
-                      fontSize: { xs: "1.8rem", md: "2.6rem" },
-                      lineHeight: 1,
-                      background: "linear-gradient(135deg, #ffffff 0%, #888888 100%)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                    }}
-                  >
-                    {project?.title}
-                  </Typography>
-                </motion.div>
-              </Box>
-
-              {/* Right: stats pills + close */}
-              <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1.5, md: 3 } }}>
-                {/* Stat chips – desktop only */}
-                <Box sx={{ display: { xs: "none", md: "flex" }, gap: 1.5 }}>
-                  {stats.map((s, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, y: -12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 + i * 0.08 }}
-                    >
-                      <Box
-                        sx={{
-                          background: "rgba(255,255,255,0.05)",
-                          border: "1px solid rgba(255,255,255,0.09)",
-                          borderRadius: "50px",
-                          px: 2,
-                          py: 0.7,
-                          backdropFilter: "blur(8px)",
-                          textAlign: "center",
-                        }}
-                      >
-                        <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "0.85rem", lineHeight: 1.2 }}>
-                          {s.value}
-                        </Typography>
-                        <Typography sx={{ color: "#555", fontSize: "0.65rem", fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                          {s.label}
-                        </Typography>
-                      </Box>
-                    </motion.div>
-                  ))}
-                </Box>
-
-                {/* Close button */}
-                <motion.button
-                  whileHover={{ rotate: 90, scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                  onClick={onClose}
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: "50%",
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#aaa",
-                    flexShrink: 0,
-                  }}
-                >
-                  <CloseIcon sx={{ fontSize: 20 }} />
-                </motion.button>
-              </Box>
-            </Box>
-
-            {/* HERO FEATURED IMAGE */}
-           {/* HERO FEATURED IMAGE / VIDEO */}
-<Box sx={{ position: "relative", zIndex: 1, px: { xs: 2, md: 5 }, pt: 4 }}>
-  <motion.div
-    key={activeIndex}
-    initial={{ opacity: 0, scale: 0.97 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-    style={{ position: "relative", borderRadius: 20, overflow: "hidden" }}
-  >
-    {project?.video ? (
-      // VIDEO MODE
-      <Box
-        component="video"
-        src={project.video}
-        autoPlay
-        muted
-        loop
-        playsInline
-        onClick={() => setIsZoomed(true)}
-        sx={{
-          width: "100%",
-          height: { xs: "auto", md: "520px" },
-          objectFit: "cover",
-          display: "block",
-          cursor: "zoom-in",
-          borderRadius: "20px",
-          border: "1px solid rgba(255,255,255,0.06)",
-        }}
-      />
-    ) : (
-      // IMAGE MODE (fallback for other projects)
-      <Box
-        component="img"
-        src={screenshots[activeIndex]}
-        alt={`${project?.title} screenshot ${activeIndex + 1}`}
-        onClick={() => setIsZoomed(true)}
-        sx={{
-          width: "100%",
-          height: { xs: "auto", md: "520px" },
-          objectFit: "cover",
-          display: "block",
-          cursor: "zoom-in",
-          borderRadius: "20px",
-          border: "1px solid rgba(255,255,255,0.06)",
-        }}
-      />
-    )}
-
-    {/* Gradient overlay at bottom */}
-    <Box
-      sx={{
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: "40%",
-        background: "linear-gradient(to top, rgba(10,10,11,0.85) 0%, transparent 100%)",
-        borderRadius: "0 0 20px 20px",
-        pointerEvents: "none",
-      }}
-    />
-
-    {/* Counter overlay - hide if only one item */}
-    {total > 1 && (
-      <Box
-        sx={{
-          position: "absolute",
-          bottom: 20,
-          left: 24,
-          display: "flex",
-          alignItems: "center",
-          gap: 1.5,
-        }}
-      >
-        <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: "1.6rem", lineHeight: 1 }}>
-          {String(activeIndex + 1).padStart(2, "0")}
-        </Typography>
-        <Box sx={{ width: 1, height: 28, background: "rgba(255,255,255,0.2)" }} />
-        <Typography sx={{ color: "rgba(255,255,255,0.4)", fontWeight: 600, fontSize: "1rem" }}>
-          {String(total).padStart(2, "0")}
-        </Typography>
-      </Box>
-    )}
-
-    {/* Zoom hint - change text for video */}
-    <Box
-      sx={{
-        position: "absolute",
-        bottom: 20,
-        right: 24,
-        background: "rgba(255,255,255,0.08)",
-        border: "1px solid rgba(255,255,255,0.12)",
-        backdropFilter: "blur(8px)",
-        borderRadius: "50px",
-        px: 2,
-        py: 0.6,
-      }}
-    >
-      <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.72rem", fontWeight: 600, letterSpacing: "0.1em" }}>
-        {project?.video ? "CLICK TO ZOOM VIDEO" : "CLICK TO ZOOM"}
-      </Typography>
-    </Box>
-  </motion.div>
-</Box>
-
-            {/* FILMSTRIP THUMBNAIL RAIL */}
-            <Box
-              sx={{
-                position: "relative",
-                zIndex: 1,
-                px: { xs: 2, md: 5 },
-                pt: 3,
-                pb: 2,
-                overflowX: "auto",
-                "&::-webkit-scrollbar": { height: 4 },
-                "&::-webkit-scrollbar-track": { background: "rgba(255,255,255,0.03)" },
-                "&::-webkit-scrollbar-thumb": { background: "rgba(255,255,255,0.15)", borderRadius: 4 },
-              }}
-            >
-              <Box sx={{ display: "flex", gap: 2, width: "max-content" }}>
-                {screenshots.map((src, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.35 + i * 0.07 }}
-                    whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                    onClick={() => setActiveIndex(i)}
-                    style={{ cursor: "pointer", flexShrink: 0, position: "relative" }}
-                  >
-                    <Box
-                      component="img"
-                      src={src}
-                      alt={`thumb ${i + 1}`}
-                      sx={{
-                        width: { xs: 110, md: 160 },
-                        height: { xs: 70, md: 100 },
-                        objectFit: "cover",
-                        borderRadius: "12px",
-                        border: activeIndex === i
-                          ? "2px solid rgba(255,255,255,0.9)"
-                          : "2px solid rgba(255,255,255,0.08)",
-                        transition: "all 0.3s ease",
-                        filter: activeIndex === i ? "none" : "brightness(0.45) grayscale(0.3)",
-                        display: "block",
-                      }}
-                    />
-                    {/* Active indicator dot */}
-                    {activeIndex === i && (
-                      <motion.div
-                        layoutId="activeDot"
-                        style={{
-                          position: "absolute",
-                          bottom: -10,
-                          left: "50%",
-                          transform: "translateX(-50%)",
-                          width: 6,
-                          height: 6,
-                          borderRadius: "50%",
-                          background: "#fff",
-                        }}
-                      />
-                    )}
-                  </motion.div>
-                ))}
-              </Box>
-            </Box>
-
-            {/* BOTTOM INFO ROW */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
+            {total > 1 && (
               <Box
                 sx={{
-                  position: "relative",
-                  zIndex: 1,
-                  px: { xs: 3, md: 5 },
-                  pt: 3,
-                  pb: 5,
+                  position: "absolute",
+                  bottom: { xs: 12, md: 20 },
+                  left: { xs: 14, md: 24 },
                   display: "flex",
-                  flexDirection: { xs: "column", md: "row" },
-                  alignItems: { xs: "flex-start", md: "center" },
-                  justifyContent: "space-between",
-                  gap: 3,
-                  borderTop: "1px solid rgba(255,255,255,0.05)",
-                  mt: 2,
+                  alignItems: "center",
+                  gap: 1.5,
+                  pointerEvents: "none",
                 }}
               >
-                {/* Left: description */}
-                <Box sx={{ maxWidth: 520 }}>
-                  <Typography sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 600, fontSize: "1rem", mb: 0.8 }}>
-                    Full-stack Admin Dashboard
-                  </Typography>
-                  <Typography sx={{ color: "#555", fontSize: "0.88rem", lineHeight: 1.7 }}>
-                    Built with the MERN stack. Features real-time analytics, order management, user roles, and a responsive layout engineered for scale.
-                  </Typography>
-
-                  {/* Tech tags */}
-                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 2 }}>
-                    {["React", "Node.js", "MongoDB", "Express", "Tailwind"].map((t, i) => (
-                      <motion.div
-                        key={t}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.5 + i * 0.06 }}
-                      >
-                        <Box
-                          sx={{
-                            background: "rgba(255,255,255,0.05)",
-                            border: "1px solid rgba(255,255,255,0.08)",
-                            borderRadius: "50px",
-                            px: 1.8,
-                            py: 0.4,
-                          }}
-                        >
-                          <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.75rem", fontWeight: 600 }}>
-                            {t}
-                          </Typography>
-                        </Box>
-                      </motion.div>
-                    ))}
-                  </Box>
-                </Box>
-
-                {/* Right: CTA */}
-                <Box sx={{ display: "flex", gap: 2, flexShrink: 0 }}>
-                  {/* Navigate arrows */}
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <motion.button
-                      whileHover={{ scale: 1.08, backgroundColor: "rgba(255,255,255,0.12)" }}
-                      whileTap={{ scale: 0.93 }}
-                      onClick={() => setActiveIndex((prev) => (prev - 1 + total) % total)}
-                      style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: "50%",
-                        background: "rgba(255,255,255,0.06)",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        cursor: "pointer",
-                        color: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "1.1rem",
-                        fontWeight: 700,
-                      }}
-                    >
-                      ←
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.08, backgroundColor: "rgba(255,255,255,0.12)" }}
-                      whileTap={{ scale: 0.93 }}
-                      onClick={() => setActiveIndex((prev) => (prev + 1) % total)}
-                      style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: "50%",
-                        background: "rgba(255,255,255,0.06)",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        cursor: "pointer",
-                        color: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "1.1rem",
-                        fontWeight: 700,
-                      }}
-                    >
-                      →
-                    </motion.button>
-                  </Box>
-
-                  {/* View project CTA */}
-                  <motion.button
-                    whileHover={{ scale: 1.04, boxShadow: "0 0 30px rgba(255,255,255,0.15)" }}
-                    whileTap={{ scale: 0.97 }}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      background: "#fff",
-                      color: "#111",
-                      border: "none",
-                      borderRadius: "50px",
-                      padding: "0 28px",
-                      height: 48,
-                      fontWeight: 800,
-                      fontSize: "0.9rem",
-                      cursor: "pointer",
-                      letterSpacing: "-0.2px",
-                      fontFamily: "Poppins, sans-serif",
-                    }}
-                  >
-                    View Project
-                    <span style={{ fontSize: "1rem" }}>↗</span>
-                  </motion.button>
-                </Box>
+                <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: { xs: "1.1rem", md: "1.6rem" }, lineHeight: 1 }}>
+                  {String(activeIndex + 1).padStart(2, "0")}
+                </Typography>
+                <Box sx={{ width: 1, height: { xs: 20, md: 28 }, background: "rgba(255,255,255,0.2)" }} />
+                <Typography sx={{ color: "rgba(255,255,255,0.4)", fontWeight: 600, fontSize: { xs: "0.8rem", md: "1rem" } }}>
+                  {String(total).padStart(2, "0")}
+                </Typography>
               </Box>
-            </motion.div>
-          </motion.div>
+            )}
 
-          {/* FULLSCREEN ZOOM OVERLAY */}
-          <AnimatePresence>
-            {isZoomed && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setIsZoomed(false)}
+            <Box
+              sx={{
+                position: "absolute",
+                bottom: { xs: 12, md: 20 },
+                right: { xs: 14, md: 24 },
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                backdropFilter: "blur(8px)",
+                borderRadius: "50px",
+                px: { xs: 1.2, md: 2 },
+                py: 0.6,
+                pointerEvents: "none",
+              }}
+            >
+              <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: { xs: "0.6rem", md: "0.72rem" }, fontWeight: 600, letterSpacing: "0.1em" }}>
+                TAP TO ZOOM
+              </Typography>
+            </Box>
+          </motion.div>
+        </Box>
+
+        {/* FILMSTRIP THUMBNAIL RAIL */}
+        <Box
+          sx={{
+            position: "relative",
+            zIndex: 1,
+            px: { xs: 1.5, md: 5 },
+            pt: { xs: 2, md: 3 },
+            pb: 2,
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+            "&::-webkit-scrollbar": { height: 4 },
+            "&::-webkit-scrollbar-track": { background: "rgba(255,255,255,0.03)" },
+            "&::-webkit-scrollbar-thumb": { background: "rgba(255,255,255,0.15)", borderRadius: 4 },
+          }}
+        >
+          <Box sx={{ display: "flex", gap: { xs: 1.5, md: 2 }, width: "max-content", pb: 1 }}>
+            {screenshots.map((src, i) => (
+              <div
+                key={i}
+                onClick={() => setActiveIndex(i)}
+                style={{ cursor: "pointer", flexShrink: 0, position: "relative" }}
+              >
+                <Box
+                  component="img"
+                  src={src}
+                  alt={`thumb ${i + 1}`}
+                  sx={{
+                    width: { xs: 90, sm: 110, md: 160 },
+                    height: { xs: 58, sm: 70, md: 100 },
+                    objectFit: "cover",
+                    borderRadius: "12px",
+                    border: activeIndex === i
+                      ? "2px solid rgba(255,255,255,0.9)"
+                      : "2px solid rgba(255,255,255,0.08)",
+                    transition: "all 0.3s ease",
+                    filter: activeIndex === i ? "none" : "brightness(0.45) grayscale(0.3)",
+                    display: "block",
+                  }}
+                />
+                {activeIndex === i && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: -10,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: "#fff",
+                    }}
+                  />
+                )}
+              </div>
+            ))}
+          </Box>
+        </Box>
+
+        {/* BOTTOM INFO ROW */}
+        <Box
+          sx={{
+            position: "relative",
+            zIndex: 1,
+            px: { xs: 2.5, md: 5 },
+            pt: 3,
+            pb: { xs: 4, md: 5 },
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            alignItems: { xs: "flex-start", md: "center" },
+            justifyContent: "space-between",
+            gap: 3,
+            borderTop: "1px solid rgba(255,255,255,0.05)",
+            mt: 2,
+          }}
+        >
+          {/* Left: description */}
+          <Box sx={{ maxWidth: 520, width: "100%" }}>
+            <Typography sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 600, fontSize: { xs: "0.9rem", md: "1rem" }, mb: 0.8 }}>
+              Full-stack Admin Dashboard
+            </Typography>
+            <Typography sx={{ color: "#555", fontSize: { xs: "0.82rem", md: "0.88rem" }, lineHeight: 1.7 }}>
+              Built with the MERN stack. Features real-time analytics, order management, user roles, and a responsive layout engineered for scale.
+            </Typography>
+
+            {/* Tech tags */}
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 2 }}>
+              {["React", "Node.js", "MongoDB", "Express", "Tailwind"].map((t, i) => (
+                <Box
+                  key={t}
+                  sx={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: "50px",
+                    px: 1.8,
+                    py: 0.4,
+                  }}
+                >
+                  <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.75rem", fontWeight: 600 }}>
+                    {t}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+
+          {/* Right: CTA */}
+          <Box sx={{ display: "flex", gap: 2, flexShrink: 0, width: { xs: "100%", md: "auto" }, justifyContent: { xs: "space-between", md: "flex-end" } }}>
+            {/* Navigate arrows */}
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <button
+                onClick={(e) => { e.stopPropagation(); setActiveIndex((prev) => (prev - 1 + total) % total); }}
                 style={{
-                  position: "fixed",
-                  inset: 0,
-                  zIndex: 10000,
-                  background: "rgba(0,0,0,0.96)",
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  cursor: "pointer",
+                  color: "#fff",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  cursor: "zoom-out",
-                  padding: "2rem",
+                  fontSize: "1.1rem",
+                  fontWeight: 700,
+                  padding: 0,
                 }}
               >
-                <motion.img
-                  initial={{ scale: 0.85, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.85, opacity: 0 }}
-                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                  src={screenshots[activeIndex]}
-                  alt="zoomed"
-                  style={{
-                    maxWidth: "95vw",
-                    maxHeight: "92vh",
-                    objectFit: "contain",
-                    borderRadius: 16,
-                    boxShadow: "0 40px 120px rgba(0,0,0,0.8)",
-                  }}
-                />
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: 24,
-                    right: 24,
-                    background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    borderRadius: "50px",
-                    px: 2.5,
-                    py: 0.8,
-                  }}
-                >
-                  <Typography sx={{ color: "#fff", fontSize: "0.8rem", fontWeight: 600, letterSpacing: "0.1em" }}>
-                    ESC / CLICK TO CLOSE
-                  </Typography>
-                </Box>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
+                ←
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setActiveIndex((prev) => (prev + 1) % total); }}
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  cursor: "pointer",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "1.1rem",
+                  fontWeight: 700,
+                  padding: 0,
+                }}
+              >
+                →
+              </button>
+            </Box>
+
+            {/* View project CTA */}
+            <button
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                background: "#fff",
+                color: "#111",
+                border: "none",
+                borderRadius: "50px",
+                padding: "0 24px",
+                height: 48,
+                fontWeight: 800,
+                fontSize: "0.9rem",
+                cursor: "pointer",
+                letterSpacing: "-0.2px",
+                fontFamily: "Poppins, sans-serif",
+                flexShrink: 0,
+              }}
+            >
+              View Project
+              <span style={{ fontSize: "1rem" }}>↗</span>
+            </button>
+          </Box>
+        </Box>
+      </motion.div>
+
+      {/* FULLSCREEN ZOOM OVERLAY */}
+      {isZoomed && (
+        <div
+          onClick={(e) => { e.stopPropagation(); setIsZoomed(false); }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100000,
+            background: "rgba(0,0,0,0.96)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "zoom-out",
+            padding: "1rem",
+          }}
+        >
+          <motion.img
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.85, opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            src={screenshots[activeIndex]}
+            alt="zoomed"
+            style={{
+              maxWidth: "95vw",
+              maxHeight: "90vh",
+              objectFit: "contain",
+              borderRadius: 16,
+              boxShadow: "0 40px 120px rgba(0,0,0,0.8)",
+            }}
+          />
+          <Box
+            sx={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              background: "rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: "50px",
+              px: 2,
+              py: 0.8,
+            }}
+          >
+            <Typography sx={{ color: "#fff", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.1em" }}>
+              TAP TO CLOSE
+            </Typography>
+          </Box>
+        </div>
       )}
-    </AnimatePresence>
+    </div>
   );
 }
 
@@ -679,6 +674,18 @@ export default function App() {
   const [open, setOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleOpenModal = (card) => {
+    if (card.screenshots) {
+      setSelectedProject(card);
+      setOpen(true);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setOpen(false);
+    setTimeout(() => setSelectedProject(null), 400);
+  };
 
   // Floating shapes animation
   const floatVariants = {
@@ -732,28 +739,28 @@ export default function App() {
         "/localhost_5173_Orderadmin.png",
       ]
     },
-  {
-    id: 2,
-    title: "Airbnb Clone",
-    thumbnail: "/airbnbn.png",
-    screenshots: [
-      "/airbn1.png",
-      "/airbnb2.png",
-      "/airbnb3.png",
-      "/airbnb4.png",
-    ],
-    description: "Modern Airbnb-inspired booking platform with property listings, search filters, booking flow, and responsive design.",
-    tech: ["React", "TypeScript", "Tailwind", "Framer Motion", "Vite"],
-    year: "2025",
-    status: "In Progress"
-  },
     {
-  id: 3,
-  title: "Portfolio Showcase",
-  thumbnail: "/portfolios.png",
-  video: "/YUP.mp4",
-  screenshots: ["/portfolios.png"],
-},
+      id: 2,
+      title: "Airbnb Clone",
+      thumbnail: "/airbnbn.png",
+      screenshots: [
+        "/airbn1.png",
+        "/airbnb2.png",
+        "/airbnb3.png",
+        "/airbnb4.png",
+      ],
+      description: "Modern Airbnb-inspired booking platform with property listings, search filters, booking flow, and responsive design.",
+      tech: ["React", "TypeScript", "Tailwind", "Framer Motion", "Vite"],
+      year: "2025",
+      status: "In Progress"
+    },
+    {
+      id: 3,
+      title: "Portfolio Showcase",
+      thumbnail: "/portfolios.png",
+      video: "/YUP.mp4",
+      screenshots: ["/portfolios.png"],
+    },
     {
       id: 4,
       title: "Backend Development",
@@ -817,7 +824,7 @@ export default function App() {
               gap: { md: 5 },
             }}
           >
-            {["Home", "About Me", "Portfolio", "Services", ].map(
+            {["Home", "About Me", "Portfolio", "Services"].map(
               (item) => (
                 <Typography
                   key={item}
@@ -939,7 +946,7 @@ export default function App() {
                   gap: 0,
                 }}
               >
-                {["Home", "About Me", "Portfolio", "Services", ].map(
+                {["Home", "About Me", "Portfolio", "Services"].map(
                   (item, index) => (
                     <motion.div
                       key={item}
@@ -955,7 +962,7 @@ export default function App() {
                           fontSize: "1.05rem",
                           cursor: "pointer",
                           py: 1.4,
-                          borderBottom: index < 4 ? "1px solid #EDEDED" : "none",
+                          borderBottom: index < 3 ? "1px solid #EDEDED" : "none",
                           transition: "color 0.2s ease",
                           "&:hover": { color: "#7B7B7B" },
                         }}
@@ -972,7 +979,7 @@ export default function App() {
 
         {/* main content grows to push footer down */}
         <Box sx={{ flex: 1 }}>
-          {/* ✅ Your Original Hero Section (Unchanged) */}
+          {/* ✅ Hero Section */}
           <Box
             id="home"
             sx={{
@@ -1199,7 +1206,7 @@ export default function App() {
               </motion.div>
             </Container>
 
-            {/* Side Text - hidden on mobile to avoid overflow */}
+            {/* Side Text - hidden on mobile */}
             <Typography
               sx={{
                 display: { xs: "none", md: "block" },
@@ -1557,7 +1564,7 @@ export default function App() {
               </Grid>
 
               {/* RIGHT SIDE IMAGE CARDS */}
-              <Grid  className="experience-cards">
+              <Grid className="experience-cards">
                 <motion.div
                   initial={{ opacity: 0, y: 50 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -1572,10 +1579,12 @@ export default function App() {
                   }}
                 >
                   {experienceCards.map((card) => (
-                    <animated.div
+                    // ✅ KEY FIX: plain <div> instead of animated.div so onClick
+                    // fires reliably on all mobile browsers and touch events
+                    <div
                       key={card.id}
+                      onClick={() => handleOpenModal(card)}
                       style={{
-                        ...cardSpring,
                         flex: "1 1 calc(25% - 1.8rem)",
                         maxWidth: "280px",
                         minWidth: "220px",
@@ -1585,8 +1594,10 @@ export default function App() {
                         position: "relative",
                         background: "linear-gradient(145deg, #222222, #7B7B7B)",
                         boxShadow: "0 10px 25px rgba(0, 0, 0, 0.3)",
-                        transition: "transform 0.5s ease, box-shadow 0.5s ease",
                         cursor: card.screenshots ? "pointer" : "default",
+                        transition: "transform 0.5s ease, box-shadow 0.5s ease",
+                        WebkitTapHighlightColor: "rgba(255,255,255,0.1)",
+                        userSelect: "none",
                       }}
                       data-aos="fade-up"
                       onMouseEnter={(e) => {
@@ -1596,12 +1607,6 @@ export default function App() {
                       onMouseLeave={(e) => {
                         e.currentTarget.style.transform = "scale(1)";
                         e.currentTarget.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.3)";
-                      }}
-                      onClick={() => {
-                        if (card.screenshots) {
-                          setSelectedProject(card);
-                          setOpen(true);
-                        }
                       }}
                     >
                       <Typography
@@ -1614,6 +1619,7 @@ export default function App() {
                           fontSize: "1rem",
                           letterSpacing: "0.05em",
                           textShadow: "0 2px 6px rgba(0, 0, 0, 0.5)",
+                          pointerEvents: "none",
                         }}
                       >
                         {card.title}
@@ -1629,12 +1635,13 @@ export default function App() {
                             fontWeight: 700,
                             letterSpacing: "0.15em",
                             textTransform: "uppercase",
+                            pointerEvents: "none",
                           }}
                         >
                           View ↗
                         </Typography>
                       )}
-                    </animated.div>
+                    </div>
                   ))}
                 </motion.div>
               </Grid>
@@ -1738,7 +1745,7 @@ export default function App() {
                 justifyContent: { xs: "center", md: "flex-start" },
               }}
             >
-              {["Home", "About", "Portfolio", "Services", ""].map(
+              {["Home", "About", "Portfolio", "Services"].map(
                 (item) => (
                   <Typography
                     key={item}
@@ -1836,11 +1843,11 @@ export default function App() {
       </Box>
 
       {/* ============================================================
-          CINEMATIC MODAL — replaces old Modal
+          CINEMATIC MODAL
          ============================================================ */}
       <CinematicModal
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={handleCloseModal}
         project={selectedProject}
       />
     </>
