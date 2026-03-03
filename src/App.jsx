@@ -945,7 +945,7 @@ export default function App() {
       description:
         "Modern Airbnb-inspired booking platform with property listings, search filters, booking flow, and responsive design.",
       tech: ["React", "TypeScript", "Tailwind", "Framer Motion", "Vite"],
-      year: "2025",
+      year: "2026",
       status: "In Progress",
     },
     {
@@ -1451,7 +1451,7 @@ export default function App() {
                 fontWeight: 600,
               }}
             >
-              2025
+              2026
             </Typography>
           </Box>
         </Box>
